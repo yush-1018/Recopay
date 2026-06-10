@@ -8,6 +8,7 @@ import authRoutes from "./routes/auth.routes.js";
 import loanRoutes from "./routes/loan.routes.js";
 import ticketRoutes from "./routes/ticket.routes.js";
 import transactionRoutes from "./routes/transaction.routes.js";
+import paymentRoutes from "./routes/payment.routes.js";
 
 dotenv.config();
 
@@ -30,6 +31,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/tickets", ticketRoutes);
 app.use("/api/transactions", transactionRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // ERROR HANDLING MIDDLEWARE
 app.use((err, req, res, next) => {

@@ -29,8 +29,12 @@ const loanSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Active", "Completed"],
+        enum: ["Active", "Completed", "Cancelled"],
         default: "Active"
+    },
+    lastPaymentId: {
+        type: String,
+        default: null
     }
 }, { timestamps: true });
 

@@ -1,6 +1,5 @@
 const API_URL = "https://recopay.onrender.com/api";
 
-// RETRY WRAPPER — Render free tier sleeps, so retry on failure
 const fetchWithRetry = async (url, options = {}, retries = 3) => {
     const token = localStorage.getItem("recopay_token");
     const headers = {
@@ -12,7 +11,10 @@ const fetchWithRetry = async (url, options = {}, retries = 3) => {
     for (let i = 0; i < retries; i++) {
         try {
             const res = await fetch(url, finalOptions);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.message || `HTTP ${res.status}`);
+            }
             return res;
         } catch (err) {
             if (i === retries - 1) throw err;
@@ -21,28 +23,22 @@ const fetchWithRetry = async (url, options = {}, retries = 3) => {
     }
 };
 
-// CREATE LOAN
-export const applyLoan = async (data) => {
-    const res = await fetchWithRetry(`${API_URL}/loans`, {
+// Create a Razorpay order
+export const createPaymentOrder = async (loanId) => {
+    const res = await fetchWithRetry(`${API_URL}/payments/order`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ loanId }),
     });
     return res.json();
 };
 
-// GET LOANS (filtered by email)
-export const getLoans = async (email) => {
-    const url = email ? `${API_URL}/loans?email=${encodeURIComponent(email)}` : `${API_URL}/loans`;
-    const res = await fetchWithRetry(url);
-    return res.json();
-};
-
-
-// DELETE LOAN
-export const deleteLoanAPI = async (id) => {
-    const res = await fetchWithRetry(`${API_URL}/loans/${id}`, {
-        method: "DELETE",
+// Verify payment after Razorpay checkout success
+export const verifyPayment = async (paymentData) => {
+    const res = await fetchWithRetry(`${API_URL}/payments/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(paymentData),
     });
     return res.json();
 };

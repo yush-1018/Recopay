@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect } from "react";
-import { applyLoan, getLoans, payEMI, deleteLoanAPI } from "../api/loan.api";
+import { applyLoan, getLoans, deleteLoanAPI } from "../api/loan.api";
 import { getTransactionsAPI } from "../api/transaction.api";
 import { useAuth } from "./AuthContext";
 
@@ -69,23 +69,6 @@ export const LoanProvider = ({ children }) => {
         }
     };
 
-    // ✅ PAY EMI → MongoDB
-    const payLoan = async (loanId) => {
-        try {
-            const updatedLoan = await payEMI(loanId);
-            setLoans(prev =>
-                prev.map(l => l._id === loanId ? updatedLoan : l)
-            );
-
-            // Re-fetch transactions (backend automatically created transaction)
-            await fetchTransactions();
-
-            return updatedLoan;
-        } catch (err) {
-            console.error("Failed to pay EMI:", err);
-            throw err;
-        }
-    };
 
     // ✅ DELETE LOAN → MongoDB
     const deleteLoan = async (loanId) => {
@@ -112,7 +95,6 @@ export const LoanProvider = ({ children }) => {
             loans,
             loading,
             addLoan,
-            payLoan,
             deleteLoan,
             transactions,
             clearAllData,
