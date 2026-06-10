@@ -7,6 +7,7 @@ import connectDB from "./config/db.js";
 import authRoutes from "./routes/auth.routes.js";
 import loanRoutes from "./routes/loan.routes.js";
 import ticketRoutes from "./routes/ticket.routes.js";
+import transactionRoutes from "./routes/transaction.routes.js";
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/loans", loanRoutes);
 app.use("/api/tickets", ticketRoutes);
+app.use("/api/transactions", transactionRoutes);
 
 // ERROR HANDLING MIDDLEWARE
 app.use((err, req, res, next) => {

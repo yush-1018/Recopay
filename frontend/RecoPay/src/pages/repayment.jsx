@@ -5,7 +5,7 @@ import "./repayment.css";
 
 function Repayment() {
 
-    const { loans, loading, payLoan, deleteLoan, addTransaction } = useContext(LoanContext);
+    const { loans, loading, payLoan, deleteLoan } = useContext(LoanContext);
     const toast = useToast();
 
     // 🔥 HANDLE EMI PAYMENT
@@ -25,15 +25,6 @@ function Repayment() {
             const emi = Math.ceil(loan.amount / duration);
 
             await payLoan(loan._id);
-
-            addTransaction({
-                id: Date.now(),
-                date: new Date().toLocaleDateString(),
-                type: loan.type,
-                category: "Repayment",
-                amount: emi,
-                status: "Success"
-            });
 
             toast.success(`EMI of ₹${emi.toLocaleString()} paid successfully!`);
         } catch (err) {

@@ -1,4 +1,5 @@
 import Loan from "../models/loan.js";
+import Transaction from "../models/transaction.js";
 
 // CREATE LOAN
 export const createLoan = async (req, res) => {
@@ -21,6 +22,15 @@ export const createLoan = async (req, res) => {
             purpose: purpose || "",
             paid: 0,
             status: "Active"
+        });
+
+        // Automatically create a transaction for the new loan
+        await Transaction.create({
+            userEmail,
+            type,
+            amount: Number(amount),
+            status: "Success",
+            category: "Loan"
         });
 
         res.status(201).json(loan);
@@ -63,6 +73,15 @@ export const updateLoan = async (req, res) => {
         loan.status = newPaid >= loan.amount ? "Completed" : "Active";
         await loan.save();
 
+        // Automatically create a transaction for the EMI payment
+        await Transaction.create({
+            userEmail: loan.userEmail,
+            type: loan.type,
+            amount: emi,
+            status: "Success",
+            category: "EMI Payment"
+        });
+
         res.status(200).json(loan);
 
     } catch (error) {
@@ -78,6 +97,18 @@ export const deleteLoan = async (req, res) => {
 
         if (!loan) {
             return res.status(404).json({ message: "Loan not found" });
+        }
+
+        // Automatically create a cancellation transaction for any unpaid amount
+        const remainingAmount = loan.amount - (loan.paid || 0);
+        if (remainingAmount > 0) {
+            await Transaction.create({
+                userEmail: loan.userEmail,
+                type: loan.type,
+                amount: remainingAmount,
+                status: "Cancelled",
+                category: "Cancelled"
+            });
         }
 
         res.status(200).json({ message: "Loan deleted", loan });

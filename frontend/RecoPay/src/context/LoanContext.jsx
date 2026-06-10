@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from "react";
 import { applyLoan, getLoans, payEMI, deleteLoanAPI } from "../api/loan.api";
+import { getTransactionsAPI } from "../api/transaction.api";
 import { useAuth } from "./AuthContext";
 
 export const LoanContext = createContext();
@@ -8,46 +9,47 @@ export const LoanProvider = ({ children }) => {
     const { user } = useAuth();
     const userEmail = user?.email || "";
 
-    // Transaction key per user
-    const txKey = userEmail ? `transactions_${userEmail}` : "transactions";
-
     const [loans, setLoans] = useState([]);
-    const [transactions, setTransactions] = useState(() => {
-        const saved = localStorage.getItem(txKey);
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // 🔹 FETCH USER'S LOANS FROM MONGODB
+    // 🔹 FETCH USER'S DATA FROM MONGODB
     useEffect(() => {
         if (userEmail) {
-            fetchLoans();
+            fetchData();
         } else {
             setLoans([]);
+            setTransactions([]);
             setLoading(false);
         }
     }, [userEmail]);
 
-    // 🔹 RELOAD TRANSACTIONS WHEN USER CHANGES
-    useEffect(() => {
-        const saved = localStorage.getItem(txKey);
-        setTransactions(saved ? JSON.parse(saved) : []);
-    }, [txKey]);
-
-    // 🔹 SAVE TRANSACTIONS TO LOCALSTORAGE (per user)
-    useEffect(() => {
-        localStorage.setItem(txKey, JSON.stringify(transactions));
-    }, [transactions, txKey]);
+    const fetchData = async () => {
+        try {
+            setLoading(true);
+            await Promise.all([fetchLoans(), fetchTransactions()]);
+        } catch (err) {
+            console.error("Failed to fetch data:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const fetchLoans = async () => {
         try {
-            setLoading(true);
             const data = await getLoans(userEmail);
             setLoans(data);
         } catch (err) {
             console.error("Failed to fetch loans:", err);
-        } finally {
-            setLoading(false);
+        }
+    };
+
+    const fetchTransactions = async () => {
+        try {
+            const data = await getTransactionsAPI(userEmail);
+            setTransactions(data);
+        } catch (err) {
+            console.error("Failed to fetch transactions:", err);
         }
     };
 
@@ -55,18 +57,10 @@ export const LoanProvider = ({ children }) => {
     const addLoan = async (loan) => {
         try {
             const newLoan = await applyLoan({ ...loan, userEmail });
-
             setLoans(prev => [newLoan, ...prev]);
 
-            // CREDIT TRANSACTION (localStorage)
-            addTransaction({
-                id: Date.now(),
-                date: new Date().toLocaleDateString(),
-                type: loan.type,
-                category: "Loan",
-                amount: Number(loan.amount),
-                status: "Success"
-            });
+            // Re-fetch transactions (backend automatically created transaction)
+            await fetchTransactions();
 
             return newLoan;
         } catch (err) {
@@ -82,6 +76,10 @@ export const LoanProvider = ({ children }) => {
             setLoans(prev =>
                 prev.map(l => l._id === loanId ? updatedLoan : l)
             );
+
+            // Re-fetch transactions (backend automatically created transaction)
+            await fetchTransactions();
+
             return updatedLoan;
         } catch (err) {
             console.error("Failed to pay EMI:", err);
@@ -92,37 +90,21 @@ export const LoanProvider = ({ children }) => {
     // ✅ DELETE LOAN → MongoDB
     const deleteLoan = async (loanId) => {
         try {
-            const loan = loans.find(l => l._id === loanId);
             await deleteLoanAPI(loanId);
             setLoans(prev => prev.filter(l => l._id !== loanId));
 
-            // CANCELLATION TRANSACTION
-            if (loan) {
-                addTransaction({
-                    id: Date.now(),
-                    date: new Date().toLocaleDateString(),
-                    type: loan.type,
-                    category: "Cancelled",
-                    amount: loan.amount - (loan.paid || 0),
-                    status: "Cancelled"
-                });
-            }
+            // Re-fetch transactions (backend automatically created cancellation transaction)
+            await fetchTransactions();
         } catch (err) {
             console.error("Failed to delete loan:", err);
             throw err;
         }
     };
 
-    // ✅ ADD TRANSACTION (localStorage only)
-    const addTransaction = (tx) => {
-        setTransactions(prev => [...prev, tx]);
-    };
-
     // ✅ CLEAR ALL DATA
     const clearAllData = () => {
         setLoans([]);
         setTransactions([]);
-        localStorage.removeItem(txKey);
     };
 
     return (
@@ -133,9 +115,9 @@ export const LoanProvider = ({ children }) => {
             payLoan,
             deleteLoan,
             transactions,
-            addTransaction,
             clearAllData,
-            fetchLoans
+            fetchLoans,
+            fetchTransactions
         }}>
             {children}
         </LoanContext.Provider>
