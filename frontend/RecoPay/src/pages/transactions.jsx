@@ -65,6 +65,7 @@ function Transactions() {
                     onChange={(e) => setFilterCategory(e.target.value)}
                 >
                     <option value="All">All Categories</option>
+                    <option value="Disbursement">Disbursement</option>
                     <option value="Loan">Loan</option>
                     <option value="Repayment">Repayment</option>
                     <option value="Cancelled">Cancelled</option>
@@ -110,14 +111,14 @@ function Transactions() {
                                     </span>
                                 </td>
                                 <td style={{
-                                    color: tx.category === "Loan"
+                                    color: (tx.category === "Loan" || tx.category === "Disbursement")
                                         ? "var(--accent-green)"
                                         : tx.category === "Cancelled"
                                             ? "var(--accent-red)"
                                             : "var(--accent-orange)",
                                     fontWeight: "600"
                                 }}>
-                                    {tx.category === "Loan" ? "+" : "−"}₹{Number(tx.amount).toLocaleString()}
+                                    {(tx.category === "Loan" || tx.category === "Disbursement") ? "+" : "−"}₹{Number(tx.amount).toLocaleString()}
                                 </td>
                                 <td style={{
                                     color: tx.status === "Success"

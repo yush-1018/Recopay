@@ -3,6 +3,24 @@ import { LoanContext } from "../context/LoanContext";
 import { useToast } from "../context/ToastContext";
 import "./applyloan.css";
 
+// Mirror of the backend default rates (used for client-side EMI preview)
+const INTEREST_RATES = {
+    Personal:  12,
+    Education:  9,
+    Business:  14,
+    Housing:    8.5,
+    Vehicle:   10.5,
+};
+
+/** Reducing-balance EMI formula — same as backend */
+function calcEMI(principal, annualRate, months) {
+    if (!principal || !months || months <= 0) return 0;
+    const r = annualRate / 12 / 100;
+    if (r === 0) return Math.ceil(principal / months);
+    const factor = Math.pow(1 + r, months);
+    return Math.ceil((principal * r * factor) / (factor - 1));
+}
+
 function ApplyLoan() {
 
     const { addLoan } = useContext(LoanContext);
@@ -12,10 +30,10 @@ function ApplyLoan() {
     const [submitting, setSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
-        amount: "",
-        type: "Personal",
+        amount:   "",
+        type:     "Personal",
         duration: "",
-        purpose: ""
+        purpose:  ""
     });
 
     const handleChange = (e) => {
@@ -52,13 +70,13 @@ function ApplyLoan() {
         try {
             setSubmitting(true);
             await addLoan(formData);
-            toast.success("Loan Application Submitted! 🎉");
+            toast.success("Loan Application Submitted! Awaiting approval 🎉");
 
             setFormData({
-                amount: "",
-                type: "Personal",
+                amount:   "",
+                type:     "Personal",
                 duration: "",
-                purpose: ""
+                purpose:  ""
             });
             setStep(1);
         } catch (err) {
@@ -67,6 +85,12 @@ function ApplyLoan() {
             setSubmitting(false);
         }
     };
+
+    // Derived preview values for review step
+    const rate   = INTEREST_RATES[formData.type] ?? 12;
+    const emi    = calcEMI(Number(formData.amount), rate, Number(formData.duration));
+    const total  = emi * Number(formData.duration || 0);
+    const interest = Math.max(0, total - Number(formData.amount || 0));
 
     return (
         <div className="apply-container">
@@ -142,14 +166,19 @@ function ApplyLoan() {
 
                 {step === 3 && (
                     <>
-                        <h2>Step 3 — Review & Submit</h2>
+                        <h2>Step 3 — Review &amp; Submit</h2>
 
                         <div className="review-box">
                             <p><b>Amount</b> ₹{Number(formData.amount).toLocaleString()}</p>
                             <p><b>Type</b> {formData.type}</p>
                             <p><b>Duration</b> {formData.duration} months</p>
                             <p><b>Purpose</b> {formData.purpose}</p>
-                            <p><b>Monthly EMI</b> ₹{Math.ceil(Number(formData.amount) / Number(formData.duration)).toLocaleString()}</p>
+                            <hr style={{ margin: "10px 0", opacity: 0.2 }} />
+                            <p><b>Interest Rate</b> {rate}% p.a. (reducing balance)</p>
+                            <p><b>Monthly EMI</b> <span className="emi-highlight">₹{emi.toLocaleString()}</span></p>
+                            <p><b>Total Interest</b> ₹{interest.toLocaleString()}</p>
+                            <p><b>Total Payable</b> ₹{total.toLocaleString()}</p>
+                            <p className="review-note">📋 Application will be reviewed before disbursement.</p>
                         </div>
 
                         <div className="form-buttons">

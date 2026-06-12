@@ -3,6 +3,7 @@ import { z } from "zod";
 /**
  * Zod schema for POST /api/loans
  * Enforces: type, amount (>0), optional duration, optional purpose, valid userEmail
+ * New: optional interestRate (1–36%)
  */
 export const loanSchema = z.object({
     type: z
@@ -40,4 +41,16 @@ export const loanSchema = z.object({
     userEmail: z
         .string({ required_error: "User email is required" })
         .email("Invalid email address"),
+
+    // Optional override — backend auto-assigns by loan type if omitted
+    interestRate: z
+        .preprocess(
+            (val) => (val === undefined || val === "" ? undefined : Number(val)),
+            z
+                .number()
+                .min(0,  "Interest rate cannot be negative")
+                .max(36, "Interest rate cannot exceed 36%")
+                .optional()
+        )
+        .optional(),
 });

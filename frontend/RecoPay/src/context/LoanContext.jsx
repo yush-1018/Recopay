@@ -1,5 +1,5 @@
 import { createContext, useState, useEffect } from "react";
-import { applyLoan, getLoans, deleteLoanAPI } from "../api/loan.api";
+import { applyLoan, getLoans, deleteLoanAPI, approveLoanAPI, rejectLoanAPI, disburseLoanAPI } from "../api/loan.api";
 import { getTransactionsAPI } from "../api/transaction.api";
 import { useAuth } from "./AuthContext";
 
@@ -69,6 +69,45 @@ export const LoanProvider = ({ children }) => {
         }
     };
 
+    // ✅ APPROVE LOAN → Pending → Approved
+    const approveLoan = async (loanId) => {
+        try {
+            const updated = await approveLoanAPI(loanId);
+            setLoans(prev => prev.map(l => l._id === loanId ? updated : l));
+            return updated;
+        } catch (err) {
+            console.error("Failed to approve loan:", err);
+            throw err;
+        }
+    };
+
+    // ✅ REJECT LOAN → Pending → Rejected
+    const rejectLoan = async (loanId) => {
+        try {
+            const updated = await rejectLoanAPI(loanId);
+            setLoans(prev => prev.map(l => l._id === loanId ? updated : l));
+            return updated;
+        } catch (err) {
+            console.error("Failed to reject loan:", err);
+            throw err;
+        }
+    };
+
+    // ✅ DISBURSE LOAN → Approved → Active
+    const disburseLoan = async (loanId) => {
+        try {
+            const updated = await disburseLoanAPI(loanId);
+            setLoans(prev => prev.map(l => l._id === loanId ? updated : l));
+
+            // Re-fetch transactions (backend created disbursement transaction)
+            await fetchTransactions();
+
+            return updated;
+        } catch (err) {
+            console.error("Failed to disburse loan:", err);
+            throw err;
+        }
+    };
 
     // ✅ DELETE LOAN → MongoDB
     const deleteLoan = async (loanId) => {
@@ -95,6 +134,9 @@ export const LoanProvider = ({ children }) => {
             loans,
             loading,
             addLoan,
+            approveLoan,
+            rejectLoan,
+            disburseLoan,
             deleteLoan,
             transactions,
             clearAllData,

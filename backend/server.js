@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
+import helmet from "helmet";
+import mongoSanitize from "express-mongo-sanitize";
 
 // ROUTES
 import authRoutes from "./routes/auth.routes.js";
@@ -16,7 +18,9 @@ const app = express();
 
 // MIDDLEWARE
 app.use(cors());
+app.use(helmet());
 app.use(express.json());
+app.use(mongoSanitize());
 
 // ROOT CHECK
 app.get("/", (req, res) => {

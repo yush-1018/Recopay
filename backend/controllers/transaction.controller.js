@@ -3,10 +3,25 @@ import Transaction from "../models/transaction.js";
 // GET TRANSACTIONS
 export const getTransactions = async (req, res) => {
     try {
-        const { email } = req.query;
+        const { email, page = 1, limit = 1000 } = req.query;
         const userEmail = email || req.user.email;
-        const transactions = await Transaction.find({ userEmail }).sort({ createdAt: -1 });
-        res.status(200).json(transactions);
+        
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
+
+        const total = await Transaction.countDocuments({ userEmail });
+        const transactions = await Transaction.find({ userEmail })
+                                              .sort({ createdAt: -1 })
+                                              .skip(skip)
+                                              .limit(limitNum);
+
+        res.status(200).json({
+            data: transactions,
+            total,
+            page: pageNum,
+            totalPages: Math.ceil(total / limitNum)
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

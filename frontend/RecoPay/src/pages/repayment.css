@@ -131,7 +131,7 @@ tbody tr:last-child td {
 /* ── PROGRESS BAR ── */
 .progress-bar {
     width: 120px;
-    height: 4px;
+    height: 8px;
     background: rgba(255, 255, 255, 0.06);
     border-radius: 10px;
     margin-bottom: 6px;
@@ -139,7 +139,7 @@ tbody tr:last-child td {
 }
 
 .progress {
-    height: 4px;
+    height: 8px;
     background: linear-gradient(90deg, var(--primary), var(--accent-cyan));
     border-radius: 10px;
     transition: width 0.8s var(--ease-out);
@@ -149,6 +149,32 @@ small {
     color: var(--text-muted);
     font-size: 11px;
     font-weight: 500;
+}
+
+/* ── STATUS BADGE ── */
+.status-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.next-due {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+    font-weight: 500;
+}
+
+/* ── ACTION GROUP ── */
+.action-group {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
 }
 
 /* ── BUTTONS ── */
@@ -189,6 +215,51 @@ small {
     letter-spacing: 0.2px;
 }
 
+.simulate-btn {
+    background: linear-gradient(135deg, #ffa500, #ff8c00);
+    color: white;
+    padding: 7px 14px;
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 11px;
+    font-family: inherit;
+    transition: all var(--transition-base);
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+}
+
+.simulate-btn:hover {
+    box-shadow: 0 4px 16px rgba(255, 165, 0, 0.35);
+    transform: translateY(-1px);
+}
+
+.simulate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.schedule-toggle-btn {
+    background: transparent;
+    color: var(--primary-light);
+    padding: 7px 12px;
+    border: 1px solid var(--primary-subtle);
+    border-radius: var(--radius-full);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--transition-base);
+    white-space: nowrap;
+}
+
+.schedule-toggle-btn:hover {
+    background: var(--primary-subtle);
+    border-color: var(--primary-light);
+}
+
 .delete-btn {
     background: transparent;
     color: var(--text-muted);
@@ -207,6 +278,62 @@ small {
     border-color: rgba(255, 71, 87, 0.3);
 }
 
+/* ── SCHEDULE PANEL ── */
+.schedule-panel {
+    margin-top: 12px;
+    padding: 12px;
+    background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+    border-radius: var(--radius-md, 8px);
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    animation: fadeInUp 0.3s ease;
+}
+
+.schedule-table {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-size: 12px;
+}
+
+.schedule-table th {
+    padding: 6px 10px;
+    font-size: 10px;
+    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+
+.schedule-table td {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.04));
+}
+
+.schedule-table tr.inst-paid td {
+    opacity: 0.5;
+}
+
+.inst-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.inst-paid {
+    background: var(--accent-green-subtle, rgba(46, 213, 115, 0.12));
+    color: var(--accent-green, #2ed573);
+}
+
+.inst-pending {
+    background: var(--accent-orange-subtle, rgba(255, 165, 0, 0.12));
+    color: var(--accent-orange, #ffa500);
+}
+
+.inst-overdue {
+    background: var(--accent-red-subtle, rgba(255, 71, 87, 0.12));
+    color: var(--accent-red, #ff4757);
+}
+
 /* ── RESPONSIVE ── */
 @media (max-width: 900px) {
     .cards {
@@ -221,4 +348,28 @@ small {
         padding: 10px 12px;
         font-size: 12px;
     }
+}
+
+/* ── LOADING STATE ── */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 0;
+    color: var(--text-muted);
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
 }

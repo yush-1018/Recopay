@@ -31,4 +31,6 @@ const transactionSchema = new mongoose.Schema({
     toObject: { virtuals: true }
 });
 
+transactionSchema.index({ userEmail: 1 });
+
 export default mongoose.model("Transaction", transactionSchema);

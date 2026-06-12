@@ -10,7 +10,11 @@ import { AuthProvider } from "./context/AuthContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-const GOOGLE_CLIENT_ID = "11843156405-mr0po6k2tndqddkc1iiv31eqghj2nq25.apps.googleusercontent.com";
+// Load from .env — see frontend/RecoPay/.env.example
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+if (!GOOGLE_CLIENT_ID) {
+    console.warn("[RecoPay] VITE_GOOGLE_CLIENT_ID is not set. Google login will not work. Copy .env.example → .env and fill in your Client ID.");
+}
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>

@@ -1,258 +1,216 @@
 import { useContext } from "react";
 import { LoanContext } from "../context/LoanContext";
+import { Link } from "react-router-dom";
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 function DashboardHome() {
-
     const { loans, transactions } = useContext(LoanContext);
 
-    const totalLoan = loans.reduce(
-        (sum, loan) => sum + Number(loan.amount || 0),
-        0
-    );
+    // ── DATA PREP: WALLET ──
+    const totalCredited = loans
+        .filter(loan => loan.status === "Active" || loan.status === "Completed")
+        .reduce((sum, loan) => sum + Number(loan.amount || 0), 0);
 
-    const totalPaid = loans.reduce(
-        (sum, loan) => sum + Number(loan.paid || 0),
-        0
-    );
+    const totalPaid = loans.reduce((sum, loan) => sum + Number(loan.paid || 0), 0);
+    const activeLoans = loans.filter(l => l.status === "Active");
 
-    const activeLoans = loans.filter(l => (l.paid || 0) < l.amount);
-    const paidPercent = totalLoan > 0 ? Math.round((totalPaid / totalLoan) * 100) : 0;
+    // ── DATA PREP: CHARTS ──
+    // 1. Loan Distribution
+    const loanTypeData = loans.reduce((acc, loan) => {
+        const type = loan.type || "Other";
+        if (!acc[type]) acc[type] = 0;
+        acc[type] += Number(loan.amount || 0);
+        return acc;
+    }, {});
+    
+    const pieData = Object.keys(loanTypeData).map(k => ({ name: k, value: loanTypeData[k] }));
+    const PIE_COLORS = ['#1E90FF', '#00D2FF', '#ffa500', '#2ed573', '#ff4757'];
 
-    // SVG circle params
-    const radius = 60;
-    const circumference = 2 * Math.PI * radius;
-    const strokeOffset = circumference - (paidPercent / 100) * circumference;
+    // 2. Payment History (last 6 months approximation by category)
+    const txDataMap = {};
+    transactions.forEach(tx => {
+        const d = new Date(tx.date);
+        if (!isNaN(d)) {
+            const month = d.toLocaleString('default', { month: 'short' });
+            if (!txDataMap[month]) txDataMap[month] = { name: month, Paid: 0, Credited: 0 };
+            if (tx.category === "EMI Payment") txDataMap[month].Paid += Number(tx.amount || 0);
+            if (tx.category === "Disbursement") txDataMap[month].Credited += Number(tx.amount || 0);
+        }
+    });
+    // Convert to array and take last 6
+    let barData = Object.values(txDataMap);
+    if (barData.length > 6) barData = barData.slice(-6);
+
+    // ── DATA PREP: UPCOMING EMIs ──
+    const upcomingEMIs = [];
+    loans.forEach(loan => {
+        if (loan.status === "Active" && loan.repaymentSchedule) {
+            const nextPending = loan.repaymentSchedule.find(i => i.status === "Pending");
+            if (nextPending) {
+                upcomingEMIs.push({ ...nextPending, loanType: loan.type, loanId: loan._id });
+            }
+        }
+    });
+    upcomingEMIs.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
 
     return (
         <div style={{ animation: "fadeInUp 0.4s ease" }}>
 
             {/* ── HEADER ── */}
-            <div style={{ marginBottom: "32px" }}>
-                <h1 style={{
-                    fontSize: "26px",
-                    fontWeight: "800",
-                    color: "var(--text-primary)",
-                    letterSpacing: "-0.3px",
-                    marginBottom: "4px"
-                }}>
-                    Your Spending
-                </h1>
-                <p style={{
-                    color: "var(--text-muted)",
-                    fontSize: "13px",
-                    fontWeight: "500"
-                }}>
-                    Loan overview at a glance
-                </p>
-            </div>
-
-            {/* ── TOP ROW: Circle + Quick Stats ── */}
-            <div style={{
-                display: "flex",
-                gap: "20px",
-                marginBottom: "28px",
-                flexWrap: "wrap"
-            }}>
-
-                {/* CIRCULAR PROGRESS */}
-                <div style={{
-                    background: "var(--bg-card)",
-                    borderRadius: "var(--radius-xl)",
-                    border: "1px solid var(--border-color)",
-                    padding: "28px 36px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "28px",
-                    flex: "1",
-                    minWidth: "300px"
-                }}>
-                    <div style={{ position: "relative", width: "140px", height: "140px", flexShrink: 0 }}>
-                        <svg width="140" height="140" viewBox="0 0 140 140" style={{ transform: "rotate(-90deg)" }}>
-                            {/* Background ring */}
-                            <circle
-                                cx="70" cy="70" r={radius}
-                                fill="none"
-                                stroke="rgba(255,255,255,0.06)"
-                                strokeWidth="10"
-                            />
-                            {/* Progress ring */}
-                            <circle
-                                cx="70" cy="70" r={radius}
-                                fill="none"
-                                stroke="url(#gradient)"
-                                strokeWidth="10"
-                                strokeLinecap="round"
-                                strokeDasharray={circumference}
-                                strokeDashoffset={strokeOffset}
-                                style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.22, 1, 0.36, 1)" }}
-                            />
-                            <defs>
-                                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                    <stop offset="0%" stopColor="#1E90FF" />
-                                    <stop offset="100%" stopColor="#00D2FF" />
-                                </linearGradient>
-                            </defs>
-                        </svg>
-                        {/* Center text */}
-                        <div style={{
-                            position: "absolute",
-                            inset: 0,
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center"
-                        }}>
-                            <span style={{
-                                fontSize: "28px",
-                                fontWeight: "800",
-                                color: "var(--text-primary)",
-                                letterSpacing: "-0.5px"
-                            }}>
-                                {paidPercent}%
-                            </span>
-                            <span style={{
-                                fontSize: "11px",
-                                color: "var(--text-muted)",
-                                fontWeight: "500",
-                                letterSpacing: "0.5px",
-                                textTransform: "uppercase"
-                            }}>
-                                Repaid
-                            </span>
-                        </div>
-                    </div>
-
-                    {/* Stats next to circle */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                        <div>
-                            <p style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: "500", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>
-                                Total Borrowed
-                            </p>
-                            <p style={{ color: "var(--text-primary)", fontSize: "22px", fontWeight: "700", letterSpacing: "-0.3px" }}>
-                                ₹{totalLoan.toLocaleString()}
-                            </p>
-                        </div>
-                        <div>
-                            <p style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: "500", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "4px" }}>
-                                Remaining
-                            </p>
-                            <p style={{ color: "var(--accent-orange)", fontSize: "22px", fontWeight: "700", letterSpacing: "-0.3px" }}>
-                                ₹{(totalLoan - totalPaid).toLocaleString()}
-                            </p>
-                        </div>
-                    </div>
+            <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                    <h1 style={{ fontSize: "26px", fontWeight: "800", color: "var(--text-primary)", letterSpacing: "-0.3px", marginBottom: "4px" }}>
+                        Dashboard Overview
+                    </h1>
+                    <p style={{ color: "var(--text-muted)", fontSize: "13px", fontWeight: "500" }}>
+                        Your financial insights and upcoming payments
+                    </p>
                 </div>
-
-                {/* QUICK STAT CARDS */}
-                <div style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px",
-                    minWidth: "180px"
-                }}>
-                    <div className="card" style={{ flex: 1 }}>
-                        <p>Active Loans</p>
-                        <h2>{activeLoans.length}</h2>
-                    </div>
-                    <div className="card" style={{ flex: 1 }}>
-                        <p>Total Paid</p>
-                        <h2 style={{ color: "var(--accent-green)" }}>₹{totalPaid.toLocaleString()}</h2>
-                    </div>
+                {/* ── QUICK ACTIONS ── */}
+                <div style={{ display: "flex", gap: "12px" }}>
+                    <Link to="/apply" style={{
+                        padding: "10px 20px", background: "var(--primary)", color: "white",
+                        borderRadius: "var(--radius-full)", textDecoration: "none", fontWeight: "600",
+                        fontSize: "13px", display: "flex", alignItems: "center", gap: "6px",
+                        boxShadow: "0 4px 14px var(--primary-glow)"
+                    }}>
+                        <span>+</span> Apply for Loan
+                    </Link>
+                    <Link to="/repayment" style={{
+                        padding: "10px 20px", background: "var(--bg-elevated)", color: "var(--text-primary)",
+                        borderRadius: "var(--radius-full)", textDecoration: "none", fontWeight: "600",
+                        fontSize: "13px", border: "1px solid var(--border-color)"
+                    }}>
+                        Pay EMIs
+                    </Link>
                 </div>
             </div>
 
-            {/* ── RECENT TRANSACTIONS ── */}
-            <div>
-                <h3 style={{
-                    fontSize: "16px",
-                    fontWeight: "700",
-                    marginBottom: "14px",
-                    color: "var(--text-primary)",
-                    letterSpacing: "-0.2px"
-                }}>
-                    Recent Activity
-                </h3>
-
-                {transactions.length === 0 ? (
-                    <div style={{
-                        background: "var(--bg-card)",
-                        borderRadius: "var(--radius-lg)",
-                        border: "1px solid var(--border-color)",
-                        padding: "40px",
-                        textAlign: "center",
-                        color: "var(--text-muted)",
-                        fontSize: "13px"
-                    }}>
-                        No transactions yet — apply for a loan to get started
+            <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+                
+                {/* ── LEFT COLUMN: CHARTS & STATS ── */}
+                <div style={{ flex: "2", display: "flex", flexDirection: "column", gap: "24px", minWidth: "400px" }}>
+                    
+                    {/* KEY METRICS */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+                        <div className="card" style={{ padding: "20px" }}>
+                            <p style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Wallet Balance</p>
+                            <h2 style={{ color: "var(--accent-orange)", fontSize: "24px", marginTop: "8px" }}>₹{(totalCredited - totalPaid).toLocaleString()}</h2>
+                        </div>
+                        <div className="card" style={{ padding: "20px" }}>
+                            <p style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Total Paid</p>
+                            <h2 style={{ color: "var(--accent-green)", fontSize: "24px", marginTop: "8px" }}>₹{totalPaid.toLocaleString()}</h2>
+                        </div>
+                        <div className="card" style={{ padding: "20px" }}>
+                            <p style={{ color: "var(--text-muted)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase" }}>Active Loans</p>
+                            <h2 style={{ color: "var(--text-primary)", fontSize: "24px", marginTop: "8px" }}>{activeLoans.length}</h2>
+                        </div>
                     </div>
-                ) : (
-                    <div style={{
-                        background: "var(--bg-card)",
-                        borderRadius: "var(--radius-lg)",
-                        border: "1px solid var(--border-color)",
-                        overflow: "hidden"
-                    }}>
-                        {transactions.slice(-5).reverse().map((tx, idx, arr) => (
-                            <div key={tx.id} style={{
-                                padding: "14px 20px",
-                                display: "flex",
-                                justifyContent: "space-between",
-                                alignItems: "center",
-                                borderBottom: idx < arr.length - 1 ? "1px solid rgba(255,255,255,0.03)" : "none",
-                                transition: "background 0.15s ease",
-                            }}
-                                onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.02)"}
-                                onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                            >
-                                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                    {/* Icon circle */}
-                                    <div style={{
-                                        width: "36px",
-                                        height: "36px",
-                                        borderRadius: "10px",
-                                        background: tx.category === "Loan"
-                                            ? "var(--accent-green-subtle)"
-                                            : "var(--accent-orange-subtle)",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        fontSize: "14px",
-                                        flexShrink: 0
-                                    }}>
-                                        {tx.category === "Loan" ? "↓" : "↑"}
-                                    </div>
-                                    <div>
-                                        <p style={{
-                                            color: "var(--text-primary)",
-                                            fontWeight: "500",
-                                            fontSize: "13px",
-                                            marginBottom: "2px"
-                                        }}>
-                                            {tx.type} — {tx.category}
-                                        </p>
-                                        <p style={{
-                                            color: "var(--text-muted)",
-                                            fontSize: "11px",
-                                            fontWeight: "500"
-                                        }}>
-                                            {tx.date}
-                                        </p>
-                                    </div>
-                                </div>
-                                <span style={{
-                                    fontWeight: "600",
-                                    fontSize: "14px",
-                                    color: tx.category === "Loan"
-                                        ? "var(--accent-green)"
-                                        : "var(--accent-orange)",
-                                    letterSpacing: "-0.3px"
-                                }}>
-                                    {tx.category === "Loan" ? "+" : "−"}₹{tx.amount.toLocaleString()}
-                                </span>
+
+                    {/* CHARTS ROW */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                        {/* PIE CHART */}
+                        <div className="card" style={{ padding: "24px", display: "flex", flexDirection: "column" }}>
+                            <h3 style={{ fontSize: "15px", marginBottom: "16px", color: "var(--text-primary)" }}>Loan Distribution</h3>
+                            <div style={{ height: "200px", width: "100%" }}>
+                                {pieData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={pieData}
+                                                cx="50%" cy="50%"
+                                                innerRadius={60} outerRadius={80}
+                                                paddingAngle={5}
+                                                dataKey="value"
+                                                stroke="none"
+                                            >
+                                                {pieData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip 
+                                                contentStyle={{ background: "var(--bg-elevated)", border: "1px solid var(--border-color)", borderRadius: "8px" }}
+                                                itemStyle={{ color: "var(--text-primary)" }}
+                                            />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "12px" }}>No active loans</div>
+                                )}
                             </div>
-                        ))}
+                        </div>
+
+                        {/* BAR CHART */}
+                        <div className="card" style={{ padding: "24px", display: "flex", flexDirection: "column" }}>
+                            <h3 style={{ fontSize: "15px", marginBottom: "16px", color: "var(--text-primary)" }}>Payment History</h3>
+                            <div style={{ height: "200px", width: "100%" }}>
+                                {barData.length > 0 ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={barData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
+                                            <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `₹${val/1000}k`} />
+                                            <Tooltip 
+                                                contentStyle={{ background: "var(--bg-elevated)", border: "1px solid var(--border-color)", borderRadius: "8px" }}
+                                                cursor={{ fill: "rgba(255,255,255,0.05)" }}
+                                            />
+                                            <Bar dataKey="Paid" fill="var(--accent-green)" radius={[4, 4, 0, 0]} barSize={12} />
+                                            <Bar dataKey="Credited" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={12} />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                ) : (
+                                    <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", fontSize: "12px" }}>No transactions</div>
+                                )}
+                            </div>
+                        </div>
                     </div>
-                )}
+
+                </div>
+
+                {/* ── RIGHT COLUMN: UPCOMING EMIs ── */}
+                <div style={{ flex: "1", minWidth: "300px", display: "flex", flexDirection: "column", gap: "24px" }}>
+                    
+                    <div className="card" style={{ padding: "24px", flex: 1 }}>
+                        <h3 style={{ fontSize: "16px", marginBottom: "20px", color: "var(--text-primary)" }}>Upcoming EMIs</h3>
+                        
+                        {upcomingEMIs.length === 0 ? (
+                            <div style={{ textAlign: "center", color: "var(--text-muted)", padding: "40px 0", fontSize: "13px" }}>
+                                No upcoming payments. You're all clear!
+                            </div>
+                        ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                                {upcomingEMIs.slice(0, 4).map((emi, idx) => {
+                                    const isOverdue = new Date(emi.dueDate) < new Date();
+                                    return (
+                                        <div key={emi.loanId || idx} style={{ 
+                                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                                            padding: "16px", borderRadius: "12px",
+                                            background: isOverdue ? "var(--accent-red-subtle)" : "rgba(255,255,255,0.03)",
+                                            border: `1px solid ${isOverdue ? "rgba(255, 71, 87, 0.2)" : "rgba(255,255,255,0.05)"}`
+                                        }}>
+                                            <div>
+                                                <p style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", marginBottom: "4px" }}>{emi.loanType} Loan</p>
+                                                <p style={{ fontSize: "11px", color: isOverdue ? "var(--accent-red)" : "var(--text-muted)" }}>
+                                                    {isOverdue ? "Overdue: " : "Due: "} {new Date(emi.dueDate).toLocaleDateString()}
+                                                </p>
+                                            </div>
+                                            <div style={{ textAlign: "right" }}>
+                                                <p style={{ fontSize: "15px", fontWeight: "700", color: isOverdue ? "var(--accent-red)" : "var(--primary-light)" }}>
+                                                    ₹{emi.amount.toLocaleString()}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {upcomingEMIs.length > 4 && (
+                                    <Link to="/repayment" style={{ textAlign: "center", fontSize: "12px", color: "var(--primary)", marginTop: "8px", textDecoration: "none", fontWeight: "600" }}>
+                                        View all {upcomingEMIs.length} pending payments →
+                                    </Link>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                </div>
             </div>
         </div>
     );

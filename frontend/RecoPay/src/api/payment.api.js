@@ -1,4 +1,4 @@
-const API_URL = "https://recopay.onrender.com/api";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 const fetchWithRetry = async (url, options = {}, retries = 3) => {
     const token = localStorage.getItem("recopay_token");
