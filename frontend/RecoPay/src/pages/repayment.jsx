@@ -1,8 +1,9 @@
-import { useContext, useRef, useState } from "react";
+import { useContext, useRef, useState, useEffect, useCallback } from "react";
 import { LoanContext } from "../context/LoanContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { createPaymentOrder, verifyPayment } from "../api/payment.api";
+import { getLoans } from "../api/loan.api";
 import "./repayment.css";
 
 // ── Status styling map ───────────────────────────────────────────────────────
@@ -24,14 +25,56 @@ function StatusBadge({ status }) {
     );
 }
 
+const LOAN_PAGE_SIZE = 5;
+
 function Repayment() {
 
-    const { loans, loading, deleteLoan, approveLoan, disburseLoan, fetchLoans, fetchTransactions, rejectLoan } = useContext(LoanContext);
+    const { loans: allLoans, loading: ctxLoading, deleteLoan, approveLoan, disburseLoan, fetchLoans, fetchTransactions, rejectLoan } = useContext(LoanContext);
     const { user } = useAuth();
     const toast = useToast();
     const payingRef = useRef(false);
     const [expandedLoan, setExpandedLoan] = useState(null);
     const [simulating, setSimulating] = useState(null);
+
+    // 📄 PAGINATION STATE
+    const [pagedLoans, setPagedLoans] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalLoansCount, setTotalLoansCount] = useState(0);
+    const [pageLoading, setPageLoading] = useState(false);
+
+    const userEmail = user?.email || "";
+
+    const fetchPage = useCallback(async (page) => {
+        if (!userEmail) return;
+        setPageLoading(true);
+        try {
+            const result = await getLoans(userEmail, page, LOAN_PAGE_SIZE);
+            setPagedLoans(result.data || []);
+            setCurrentPage(result.page || page);
+            setTotalPages(result.totalPages || 1);
+            setTotalLoansCount(result.total || 0);
+        } catch (err) {
+            console.error("Failed to fetch loans page:", err);
+        } finally {
+            setPageLoading(false);
+        }
+    }, [userEmail]);
+
+    useEffect(() => {
+        fetchPage(1);
+    }, [fetchPage]);
+
+    // Refresh page when context loans change (after EMI payment, delete, etc.)
+    useEffect(() => {
+        if (allLoans) fetchPage(currentPage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allLoans]);
+
+    const handlePageChange = (page) => {
+        if (page < 1 || page > totalPages) return;
+        fetchPage(page);
+    };
 
     // 💳 HANDLE EMI PAYMENT — Opens Razorpay Checkout
     const handlePayEMI = async (loan) => {
@@ -147,10 +190,12 @@ function Repayment() {
         }
     };
 
-    // STATS
-    const totalLoaned    = loans.reduce((s, l) => s + Number(l.amount || 0), 0);
-    const totalPaid      = loans.reduce((s, l) => s + Number(l.paid || 0), 0);
+    // STATS (from context's full list)
+    const totalLoaned    = allLoans.reduce((s, l) => s + Number(l.amount || 0), 0);
+    const totalPaid      = allLoans.reduce((s, l) => s + Number(l.paid || 0), 0);
     const totalRemaining = totalLoaned - totalPaid;
+
+    const loading = ctxLoading || pageLoading;
 
     if (loading) {
         return (
@@ -185,9 +230,9 @@ function Repayment() {
                 </div>
             </div>
 
-            <h3>Your Loans</h3>
+            <h3>Your Loans <span style={{ color: "var(--text-muted)", fontWeight: 500, fontSize: "14px" }}>({totalLoansCount} total)</span></h3>
 
-            {loans.length === 0 ? (
+            {pagedLoans.length === 0 ? (
                 <p style={{ color: "var(--text-muted)", padding: "20px 0" }}>
                     No loans yet — apply for a loan first
                 </p>
@@ -208,7 +253,7 @@ function Repayment() {
                     </thead>
 
                     <tbody>
-                        {loans.map((loan) => {
+                        {pagedLoans.map((loan) => {
 
                             const duration  = Number(loan.duration) || 12;
                             const emi       = loan.emiAmount > 0 ? loan.emiAmount : Math.ceil(loan.amount / duration);
@@ -354,6 +399,58 @@ function Repayment() {
                         })}
                     </tbody>
                 </table>
+                </div>
+
+            )}
+
+            {/* ── PAGINATION ── */}
+            {totalPages > 1 && (
+                <div className="pagination">
+                    <button
+                        className="page-btn"
+                        onClick={() => handlePageChange(1)}
+                        disabled={currentPage === 1}
+                        title="First page"
+                    >
+                        «
+                    </button>
+                    <button
+                        className="page-btn"
+                        onClick={() => handlePageChange(currentPage - 1)}
+                        disabled={currentPage === 1}
+                        title="Previous page"
+                    >
+                        ‹
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter(p => Math.abs(p - currentPage) <= 2)
+                        .map(p => (
+                            <button
+                                key={p}
+                                className={`page-btn ${p === currentPage ? "active" : ""}`}
+                                onClick={() => handlePageChange(p)}
+                            >
+                                {p}
+                            </button>
+                        ))}
+
+                    <button
+                        className="page-btn"
+                        onClick={() => handlePageChange(currentPage + 1)}
+                        disabled={currentPage === totalPages}
+                        title="Next page"
+                    >
+                        ›
+                    </button>
+                    <button
+                        className="page-btn"
+                        onClick={() => handlePageChange(totalPages)}
+                        disabled={currentPage === totalPages}
+                        title="Last page"
+                    >
+                        »
+                    </button>
                 </div>
             )}
         </div>

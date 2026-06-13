@@ -37,8 +37,9 @@ export const LoanProvider = ({ children }) => {
 
     const fetchLoans = async () => {
         try {
-            const data = await getLoans(userEmail);
-            setLoans(data);
+            // Fetch all for context (used by dashboard/summary). Pages with pagination fetch their own.
+            const result = await getLoans(userEmail, 1, 1000);
+            setLoans(Array.isArray(result) ? result : (result.data || []));
         } catch (err) {
             console.error("Failed to fetch loans:", err);
         }
@@ -46,8 +47,9 @@ export const LoanProvider = ({ children }) => {
 
     const fetchTransactions = async () => {
         try {
-            const data = await getTransactionsAPI(userEmail);
-            setTransactions(data);
+            // Fetch all for context (used by dashboard/summary). Pages with pagination fetch their own.
+            const result = await getTransactionsAPI(userEmail, 1, 1000);
+            setTransactions(Array.isArray(result) ? result : (result.data || []));
         } catch (err) {
             console.error("Failed to fetch transactions:", err);
         }

@@ -31,8 +31,8 @@ export const applyLoan = async (data) => {
     return res.json();
 };
 
-// GET LOANS (filtered by email)
-export const getLoans = async (email, page = 1, limit = 1000) => {
+// GET LOANS (filtered by email) — returns { data, total, page, totalPages }
+export const getLoans = async (email, page = 1, limit = 10) => {
     const params = new URLSearchParams();
     if (email) params.append("email", email);
     params.append("page", page);
@@ -41,7 +41,11 @@ export const getLoans = async (email, page = 1, limit = 1000) => {
     const url = `${API_URL}/loans?${params.toString()}`;
     const res = await fetchWithRetry(url);
     const json = await res.json();
-    return Array.isArray(json) ? json : (json.data || []);
+    // Support both old array shape and new paginated shape
+    if (Array.isArray(json)) {
+        return { data: json, total: json.length, page: 1, totalPages: 1 };
+    }
+    return json;
 };
 
 // PAY EMI
